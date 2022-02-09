@@ -1,6 +1,12 @@
 
 resources:
-
+# The repo with our Dockerfile
+- name: pull-request
+  type: git
+  icon: github
+  source:
+    uri: https://github.com/young-kim-all-things-aws/concourse-dockerfile.git
+    branch: main
 # get oci to build docker image
 - name: oci-build
   type: registry-image
