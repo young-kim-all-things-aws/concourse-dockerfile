@@ -1,0 +1,42 @@
+jobs:
+- name: build-and-push
+  serial_group: [build-tf-image]
+  plan:
+  - get: pull-request
+    trigger: true  
+  - get: oci-build
+  - get: concourse-terraform-13-7-image         
+          
+  - task: build-task-image
+    privileged: true
+    image: oci-build
+    config:
+      platform: linux  
+      inputs:     
+      - name: pull-request 
+      outputs:
+      - name: image
+      run:
+        path: build 
+      params:
+        CONTEXT: pull-request  
+  
+  on_success:
+    do:
+    - task: test-build-push-image 
+      image: concourse-terraform-13-7-image
+      config:
+        platform: linux
+        inputs:
+        - name: concourse-terraform-13-7-image
+        run:
+          path: sh  
+          args: 
+            - -exc
+            - ls -la; echo "$job_status"; terraform version
+        params:
+          job_status: "Successfully Deployed Docker Image" 
+    - put: concourse-terraform-13-7-image
+      params:
+        version: "1.0"
+        image: image/image.tar

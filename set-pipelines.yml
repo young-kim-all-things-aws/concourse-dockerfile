@@ -1,0 +1,142 @@
+resource_types:
+- name: github-pr
+  type: registry-image
+  source:
+    repository: teliaoss/github-pr-resource
+    tag: v0.23.0
+
+# The repo with our Dockerfile
+- name: pull-request
+  type: git
+  icon: github
+  source:
+    uri: https://github.com/young-kim-all-things-aws/concourse-dockerfile.git
+    branch: main
+
+# get oci to build docker image
+- name: oci-build
+  type: registry-image
+  icon: docker
+  source:
+    repository: vito/oci-build-task
+
+# push the image to gcr
+- name: concourse-terraform-13-7-image
+  type: registry-image
+  icon: docker
+  source:
+    password: ((gcp-credentials-dev-poc))
+    repository: gcr.io/i-core-services-dev/concourse-dev
+    username: _json_key
+
+jobs:
+- name: set-self
+  plan:
+  - get: pull-request
+    trigger: true 
+  - set_pipeline: self
+    file: pull-request/set-pipelines.yml
+
+- name: set-docker-image-pipelines
+  plan:
+  - get: pull-request
+    trigger: true
+    passed: [set-self]
+  - set_pipeline: build-and-push-docker-image
+    file: pull-request/build-and-push-docker-image.yml
+
+# - name: set-rendered-pipelines
+#   public: true
+#   plan:
+#   - get: pull-request
+#     trigger: true
+#     passed: [set-self]
+#   - task: render-pipelines
+#     config:
+#       platform: linux
+#       image_resource:
+#         type: registry-image
+#         source:
+#           repository: taylorsilva/carvel-ytt
+#       inputs:
+#       - name: pull-request
+#       outputs:
+#       - name: pipeline
+#       run:
+#         path: sh
+#         args:
+#         - -cx
+#         - |
+#           ytt -f ./pull-request > build-and-push-docker-image.yml
+#           ytt -f ./concourse-examples/pipelines/templates/multiple-files > multi-files-rendered.yml
+#           mv *.yml ./pipeline/
+#   - set_pipeline: hello-world-rendered
+#     file: pipeline/hello-world-rendered.yml
+#   - set_pipeline: multi-files-rendered
+#     file: pipeline/multi-files-rendered.yml
+
+
+
+
+# - name: build-and-push
+#   serial_group: [build-tf-image]
+#   plan:
+#   - get: pull-request
+#     trigger: true
+#   - get: alpine-terraform-13-7
+#   - get: oci-build
+#   - get: concourse-terraform-13-7-image         
+          
+#   - task: build-task-image
+#     privileged: true
+#     image: oci-build
+#     config:
+#       platform: linux  
+#       inputs:     
+#       - name: pull-request 
+#       outputs:
+#       - name: image
+#       run:
+#         path: build 
+#       params:
+#         CONTEXT: pull-request  
+  
+#   on_success:
+#     do:
+#     - task: test-build-push-image 
+#       image: concourse-terraform-13-7-image
+#       config:
+#         platform: linux
+#         inputs:
+#         - name: concourse-terraform-13-7-image
+#         run:
+#           path: sh  
+#           args: 
+#             - -exc
+#             - ls -la; echo "$job_status"; terraform version
+#         params:
+#           job_status: "Successfully Deployed Docker Image" 
+#     - put: concourse-terraform-13-7-image
+#       params:
+#         version: "1.0"
+#         image: image/image.tar
+    
+#   on_failure:
+#     do:
+#     - put: pull-request
+#       params:
+#         target_url: https://((endpoints.concourse))/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME
+#         path: pull-request
+#         status: FAILURE
+#         description: Build failed
+#         base_context: concourse-ci
+#   on_abort:
+#     do:
+#     - put: pull-request
+#       params:
+#         target_url: https://((endpoints.concourse))/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME
+#         path: pull-request
+#         status: ERROR
+#         description: Build user clicked abort or error
+#         base_context: concourse-ci
+  
