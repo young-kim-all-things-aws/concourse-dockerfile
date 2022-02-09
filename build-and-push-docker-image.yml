@@ -1,3 +1,22 @@
+
+resources:
+
+# get oci to build docker image
+- name: oci-build
+  type: registry-image
+  #icon: docker
+  source:
+    repository: vito/oci-build-task
+
+# push the image to gcr
+- name: concourse-terraform-13-7-image
+  type: registry-image
+  #icon: docker
+  source:
+    password: ((gcp-credentials-dev-poc))
+    repository: gcr.io/i-core-services-dev/concourse-dev
+    username: _json_key
+
 jobs:
 - name: build-and-push
   serial_group: [build-tf-image]
