@@ -19,7 +19,7 @@ resources:
 
 jobs:
 - name: build-and-push
-  serial_group: [build-tf-image]
+  #serial_group: [build-tf-image]
   plan:
   - get: pull-request
     trigger: true  
